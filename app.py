@@ -44,7 +44,7 @@ def ask_ai():
     user_question = data.get('question', '')
     try:
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": f"أنت مساعد مهندس مدني أردني خبير. المرجع: {knowledge_base[:5000]}"},
                 {"role": "user", "content": user_question}
