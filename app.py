@@ -7,10 +7,10 @@ import PyPDF2
 app = Flask(__name__)
 CORS(app)
 
-# إعداد الـ Client من البيئة
+# إعداد الـ Client باستخدام المفتاح السري في Render
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-# كافة الكتب التي طلبتها يا هندسة
+# كافة الكتب الخمسة التي رفعتها يا هندسة
 pdf_files = [
     "Prompt_Part_1.pdf", 
     "Prompt_Part_2.pdf", 
@@ -26,8 +26,8 @@ def extract_text_from_pdfs(files):
             try:
                 with open(file_path, 'rb') as f:
                     reader = PyPDF2.PdfReader(f)
-                    # نقرأ أول 40 صفحة من كل كتاب لضمان السرعة وعدم التعليق
-                    for i in range(min(40, len(reader.pages))):
+                    # نقرأ أول 30 صفحة من كل كتاب لضمان السرعة ومنع الـ Timeout
+                    for i in range(min(30, len(reader.pages))):
                         page_text = reader.pages[i].extract_text()
                         if page_text:
                             combined_text += page_text
@@ -35,7 +35,7 @@ def extract_text_from_pdfs(files):
                 print(f"Error reading {file_path}: {e}")
     return combined_text
 
-# استخراج النصوص عند بدء التشغيل
+# استخراج النصوص عند التشغيل
 knowledge_base = extract_text_from_pdfs(pdf_files)
 
 @app.route('/ask', methods=['POST'])
@@ -46,7 +46,7 @@ def ask_ai():
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[
-                {"role": "system", "content": f"أنت مساعد مهندس مدني أردني خبير في منصة إنشائي. المرجع المتاح: {knowledge_base[:6000]}"},
+                {"role": "system", "content": f"أنت مساعد مهندس مدني أردني خبير. المرجع: {knowledge_base[:5000]}"},
                 {"role": "user", "content": user_question}
             ],
             temperature=0.7,
@@ -57,9 +57,10 @@ def ask_ai():
 
 @app.route('/')
 def health_check():
-    return "Enshaei Server is Running with All PDFs!"
+    return "Enshaei Server is LIVE with 5 PDFs!"
 
 if __name__ == "__main__":
-    # هذا السطر هو "مفتاح الحل" لرسالة No open ports detected
+    # هذا هو مفتاح الحل لرسالة No open ports detected
+    # السطر أدناه يجبر السيرفر على استخدام المنفذ الذي يحدده Render
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
