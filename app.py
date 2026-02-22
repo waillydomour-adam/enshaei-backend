@@ -7,6 +7,7 @@ import PyPDF2
 app = Flask(__name__)
 CORS(app)
 
+# إعداد الـ Client من البيئة
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # كافة الكتب التي طلبتها يا هندسة
@@ -25,14 +26,16 @@ def extract_text_from_pdfs(files):
             try:
                 with open(file_path, 'rb') as f:
                     reader = PyPDF2.PdfReader(f)
-                    # نقرأ أول 50 صفحة فقط من كل كتاب لضمان عدم تجاوز الذاكرة
-                    for i in range(min(50, len(reader.pages))):
-                        combined_text += reader.pages[i].extract_text()
+                    # نقرأ أول 40 صفحة من كل كتاب لضمان السرعة وعدم التعليق
+                    for i in range(min(40, len(reader.pages))):
+                        page_text = reader.pages[i].extract_text()
+                        if page_text:
+                            combined_text += page_text
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
     return combined_text
 
-# استخراج النصوص
+# استخراج النصوص عند بدء التشغيل
 knowledge_base = extract_text_from_pdfs(pdf_files)
 
 @app.route('/ask', methods=['POST'])
@@ -43,7 +46,7 @@ def ask_ai():
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[
-                {"role": "system", "content": f"أنت مساعد مهندس مدني أردني خبير. المرجع: {knowledge_base[:7000]}"},
+                {"role": "system", "content": f"أنت مساعد مهندس مدني أردني خبير في منصة إنشائي. المرجع المتاح: {knowledge_base[:6000]}"},
                 {"role": "user", "content": user_question}
             ],
             temperature=0.7,
@@ -54,9 +57,9 @@ def ask_ai():
 
 @app.route('/')
 def health_check():
-    return "Enshaei Server is Running with all books!"
+    return "Enshaei Server is Running with All PDFs!"
 
 if __name__ == "__main__":
-    # هذا السطر هو مفتاح الحل لمشكلة الـ Port التي ظهرت في الـ Logs
+    # هذا السطر هو "مفتاح الحل" لرسالة No open ports detected
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
