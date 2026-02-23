@@ -2,38 +2,51 @@
 import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-# استدعاء groq و pypdf جاهز للاستخدام لاحقاً
 import groq
-import pypdf
+from pypdf import PdfReader
+import io
 
 app = Flask(__name__)
-CORS(app)  # تفعيل CORS
+CORS(app)
 
-# Route رئيسية
 @app.route('/')
 def home():
     return "🚀 Backend Service is running!"
 
-# Route /ask لمعالجة POST JSON
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
-        data = request.get_json()
-        if not data or "question" not in data:
-            return jsonify({"error": "Missing 'question' in JSON"}), 400
+        # إذا المستخدم أرسل JSON فقط
+        if request.is_json:
+            data = request.get_json()
+            question = data.get("question")
+            if not question:
+                return jsonify({"error": "Missing 'question' field"}), 400
+            
+            # مثال استعلام groq تجريبي
+            # لاحقاً يمكن استبداله باستعلام حقيقي لقاعدة بيانات
+            groq_result = f"Groq query simulated for: {question}"
 
-        question = data["question"]
+            return jsonify({"answer": f"You asked: {question}", "groq_result": groq_result})
 
-        # مثال معالجة مؤقتة للرد
-        # لاحقاً يمكن استخدام groq أو pypdf هنا لمعالجة السؤال
-        answer = f"You asked: {question}"
-        return jsonify({"answer": answer})
+        # إذا المستخدم أرسل PDF
+        if "file" in request.files:
+            file = request.files["file"]
+            pdf_reader = PdfReader(io.BytesIO(file.read()))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+
+            # مثال استعلام groq على نص PDF (تجريبي)
+            groq_result = f"Groq analyzed PDF length: {len(text)} chars"
+
+            return jsonify({"pdf_text": text[:500], "groq_result": groq_result})
+
+        return jsonify({"error": "No valid JSON or PDF file sent"}), 400
 
     except Exception as e:
-        # هذا يظهر الخطأ المفصل في الـ logs
         return jsonify({"error": str(e)}), 500
 
-# Main
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # يأخذ البورت من Render أو 10000 محلي
-    app.run(host="0.0.0.0", port=port, debug=True)  # debug=True للعرض المحلي
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
