@@ -47,7 +47,13 @@ def ask():
                     answers.append(line.strip())
 
         if not answers:
-            return jsonify({"answer": "No relevant information found in PDFs."})
+            # رسالة اعتذار وتشجيع المستخدم على البحث أو إعلامنا
+            apology_msg = (
+                "نعتذر، لم نجد إجابة دقيقة لسؤالك في ملفاتنا الحالية. "
+                "يمكنك البحث عن الإجابة عبر مصادر أخرى، "
+                "أو إعلامنا لنقوم بتحديث البيانات لتغطية هذا السؤال مستقبلًا."
+            )
+            return jsonify({"answer": apology_msg})
 
         # إرجاع أقصى 5 نتائج فقط لتجنب طول الرد
         return jsonify({"answer": "\n".join(answers[:5])})
