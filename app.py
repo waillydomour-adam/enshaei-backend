@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pypdf import PdfReader
 from io import BytesIO
+import difflib  # للبحث شبه الذكي
 
 app = Flask(__name__)
 CORS(app)
@@ -39,24 +40,24 @@ def ask():
         if not question:
             return jsonify({"error": "Missing 'question' field"}), 400
 
-        # البحث داخل نصوص PDF
-        answers = []
+        matches = []
         for text in pdf_texts:
             for line in text.split("\n"):
-                if any(word in line.lower() for word in question.split()):
-                    answers.append(line.strip())
+                # البحث شبه الذكي باستخدام نسبة تشابه
+                ratio = difflib.SequenceMatcher(None, question, line.lower()).ratio()
+                if ratio > 0.6:
+                    matches.append(line.strip())
 
-        if not answers:
+        if not matches:
             # رسالة اعتذار وتشجيع المستخدم على البحث أو إعلامنا
             apology_msg = (
                 "نعتذر، لم نجد إجابة دقيقة لسؤالك في ملفاتنا الحالية. "
-                "يمكنك البحث عن الإجابة عبر مصادر أخرى، "
-                "أو إعلامنا لنقوم بتحديث البيانات لتغطية هذا السؤال مستقبلًا."
+                "يمكنك البحث عبر مصادر أخرى، أو إعلامنا لتحديث البيانات لتغطية هذا السؤال مستقبلًا."
             )
             return jsonify({"answer": apology_msg})
 
         # إرجاع أقصى 5 نتائج فقط لتجنب طول الرد
-        return jsonify({"answer": "\n".join(answers[:5])})
+        return jsonify({"answer": "\n".join(matches[:5])})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
