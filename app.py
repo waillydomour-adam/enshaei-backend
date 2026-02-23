@@ -1,43 +1,60 @@
-# app.py
 import os
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pypdf import PdfReader
-import groq
-import io
+from io import BytesIO
 
 app = Flask(__name__)
-CORS(app)  # يسمح بالطلبات من أي Origin لتطبيقك
+CORS(app)
 
-# Route /ask لمعالجة JSON أو PDF
+# روابط Raw الخاصة بملفات PDF على GitHub
+GITHUB_PDFS = [
+    "https://raw.githubusercontent.com/waillydomour-adam/enshaei-backend/main/Prompt_Part_1.pdf",
+    "https://raw.githubusercontent.com/waillydomour-adam/enshaei-backend/main/Prompt_Part_2.pdf",
+    "https://raw.githubusercontent.com/waillydomour-adam/enshaei-backend/main/Prompt_Part_3.pdf",
+    "https://raw.githubusercontent.com/waillydomour-adam/enshaei-backend/main/random-230117164555-17eca030.pdf",
+    "https://raw.githubusercontent.com/waillydomour-adam/enshaei-backend/main/%D9%83%D8%AA%D8%A7%D8%A8_%D8%A7%D9%84%D8%AA%D8%B9%D9%84%D9%8A%D9%85%D8%A7%D8%AA_%D8%A7%D9%84%D9%81%D9%86%D9%8A%D8%A9_2025.pdf"
+]
+
+pdf_texts = []
+
+# تنزيل وقراءة ملفات PDF عند تشغيل السيرفر
+for url in GITHUB_PDFS:
+    try:
+        resp = requests.get(url)
+        resp.raise_for_status()
+        reader = PdfReader(BytesIO(resp.content))
+        text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        pdf_texts.append(text)
+        print(f"Loaded PDF from: {url}")
+    except Exception as e:
+        print(f"Error loading {url}: {e}")
+
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
-        # JSON POST
-        if request.is_json:
-            data = request.get_json()
-            question = data.get("question")
-            if not question:
-                return jsonify({"error": "Missing 'question' field"}), 400
+        data = request.get_json()
+        question = data.get("question", "").lower().strip()
+        if not question:
+            return jsonify({"error": "Missing 'question' field"}), 400
 
-            # groq تجريبي
-            groq_result = f"Groq query simulated for: {question}"
-            return jsonify({"answer": f"You asked: {question}", "groq_result": groq_result})
+        # البحث داخل نصوص PDF
+        answers = []
+        for text in pdf_texts:
+            for line in text.split("\n"):
+                if any(word in line.lower() for word in question.split()):
+                    answers.append(line.strip())
 
-        # PDF upload
-        if "file" in request.files:
-            file = request.files["file"]
-            pdf_reader = PdfReader(io.BytesIO(file.read()))
-            text = "".join([page.extract_text() + "\n" for page in pdf_reader.pages])
-            groq_result = f"Groq analyzed PDF length: {len(text)} chars"
-            return jsonify({"pdf_text": text[:500], "groq_result": groq_result})
+        if not answers:
+            return jsonify({"answer": "No relevant information found in PDFs."})
 
-        return jsonify({"error": "No valid JSON or PDF file sent"}), 400
+        # إرجاع أقصى 5 نتائج فقط لتجنب طول الرد
+        return jsonify({"answer": "\n".join(answers[:5])})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Main
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
