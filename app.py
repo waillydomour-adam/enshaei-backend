@@ -1,20 +1,15 @@
 # app.py
 import os
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import groq
 from pypdf import PdfReader
 import io
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # يسمح بالطلبات من أي Origin لتطبيقك
 
-# الصفحة الرئيسية
-@app.route('/')
-def home():
-    return render_template("index.html")  # صفحة HTML للواجهة
-
-# معالجة الأسئلة أو ملفات PDF
+# Route /ask لمعالجة JSON أو PDF
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
@@ -25,7 +20,7 @@ def ask():
             if not question:
                 return jsonify({"error": "Missing 'question' field"}), 400
 
-            # مثال groq تجريبي
+            # groq تجريبي
             groq_result = f"Groq query simulated for: {question}"
             return jsonify({"answer": f"You asked: {question}", "groq_result": groq_result})
 
